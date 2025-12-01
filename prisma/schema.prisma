@@ -1,0 +1,194 @@
+// Prisma schema for 심리상담 예약 시스템
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 사용자 역할
+enum UserRole {
+  CLIENT
+  COUNSELOR
+  ADMIN
+}
+
+// 예약 상태
+enum AppointmentStatus {
+  PENDING     // 대기 중
+  CONFIRMED   // 확정
+  CANCELLED   // 취소됨
+  COMPLETED   // 완료
+  NO_SHOW     // 노쇼
+}
+
+// 알림 타입
+enum NotificationType {
+  BOOKING_CONFIRMATION  // 예약 확정
+  BOOKING_CANCELLED     // 예약 취소
+  REMINDER_24H          // 24시간 전 리마인더
+  REMINDER_1H           // 1시간 전 리마인더
+}
+
+// 알림 채널
+enum NotificationChannel {
+  SMS
+  EMAIL
+}
+
+// 사용자 (Clerk에서 동기화)
+model User {
+  id            String    @id // Clerk user ID
+  email         String    @unique
+  name          String?
+  phone         String?
+  role          UserRole  @default(CLIENT)
+  profileImage  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  counselorProfile  Counselor?
+  clientAppointments Appointment[] @relation("ClientAppointments")
+  notifications     Notification[]
+
+  @@map("users")
+}
+
+// 상담사 프로필
+model Counselor {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 프로필 정보
+  title           String?   // 직함 (ex: 임상심리전문가)
+  bio             String?   @db.Text // 자기소개
+  specialties     String[]  // 전문 분야
+  education       String[]  // 학력
+  certifications  String[]  // 자격증
+
+  // 상담 설정
+  sessionDuration Int       @default(50)  // 세션 시간 (분)
+  sessionPrice    Int       @default(100000) // 세션 가격 (원)
+
+  // 활성화 상태
+  isActive        Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  schedules           WeeklySchedule[]
+  scheduleExceptions  ScheduleException[]
+  appointments        Appointment[]
+
+  @@map("counselors")
+}
+
+// 주간 가용 시간 설정
+model WeeklySchedule {
+  id          String    @id @default(cuid())
+  counselorId String
+  counselor   Counselor @relation(fields: [counselorId], references: [id], onDelete: Cascade)
+
+  dayOfWeek   Int       // 0 = 일요일, 1 = 월요일, ... 6 = 토요일
+  startTime   String    // "09:00" 형식 (KST 기준)
+  endTime     String    // "18:00" 형식 (KST 기준)
+  isActive    Boolean   @default(true)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([counselorId, dayOfWeek])
+  @@map("weekly_schedules")
+}
+
+// 날짜별 예외 설정 (휴가, 특별 가용 시간 등)
+model ScheduleException {
+  id          String    @id @default(cuid())
+  counselorId String
+  counselor   Counselor @relation(fields: [counselorId], references: [id], onDelete: Cascade)
+
+  date        DateTime  @db.Date // 특정 날짜
+  isAvailable Boolean   @default(false) // false = 휴무, true = 특별 가용
+  startTime   String?   // isAvailable = true일 때 가용 시작 시간
+  endTime     String?   // isAvailable = true일 때 가용 종료 시간
+  reason      String?   // 사유 (ex: 휴가, 연수 등)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([counselorId, date])
+  @@map("schedule_exceptions")
+}
+
+// 예약
+model Appointment {
+  id              String            @id @default(cuid())
+
+  // 관계
+  counselorId     String
+  counselor       Counselor         @relation(fields: [counselorId], references: [id])
+  clientId        String
+  client          User              @relation("ClientAppointments", fields: [clientId], references: [id])
+
+  // 예약 시간 (UTC로 저장)
+  startTime       DateTime
+  endTime         DateTime
+
+  // 예약 정보
+  status          AppointmentStatus @default(PENDING)
+  sessionType     String?           // 상담 유형 (ex: 개인상담, 커플상담)
+  notes           String?           @db.Text // 내담자 메모
+  counselorNotes  String?           @db.Text // 상담사 노트 (내담자에게 미공개)
+
+  // 결제 정보
+  price           Int               // 예약 당시 가격
+  isPaid          Boolean           @default(false)
+
+  // 리마인더 발송 여부
+  reminder24hSent Boolean           @default(false)
+  reminder1hSent  Boolean           @default(false)
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  cancelledAt     DateTime?
+  cancelReason    String?
+
+  // Relations
+  notifications   Notification[]
+
+  @@index([counselorId, startTime])
+  @@index([clientId, startTime])
+  @@index([status])
+  @@map("appointments")
+}
+
+// 알림 기록
+model Notification {
+  id              String              @id @default(cuid())
+
+  userId          String
+  user            User                @relation(fields: [userId], references: [id])
+  appointmentId   String?
+  appointment     Appointment?        @relation(fields: [appointmentId], references: [id])
+
+  type            NotificationType
+  channel         NotificationChannel
+
+  recipient       String              // 전화번호 또는 이메일
+  content         String              @db.Text // 발송 내용
+
+  sentAt          DateTime?
+  isSuccess       Boolean             @default(false)
+  errorMessage    String?
+
+  createdAt       DateTime            @default(now())
+
+  @@index([appointmentId])
+  @@index([userId])
+  @@map("notifications")
+}
