@@ -1,11 +1,10 @@
-import { Resend } from "resend";
 import { SolapiMessageService } from "solapi";
 import { prisma } from "./prisma";
 import { formatDateKST, formatTimeKST } from "./datetime";
 import { formatPrice } from "./utils";
 
-// Resend 초기화
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Web3Forms API
+const WEB3FORMS_ACCESS_KEY = process.env.WEB3FORMS_ACCESS_KEY || "";
 
 // Solapi 초기화
 const solapi = new SolapiMessageService(
@@ -92,7 +91,7 @@ export async function sendReminder(
   await Promise.allSettled(promises);
 }
 
-// 이메일 알림 발송
+// 이메일 알림 발송 (Web3Forms)
 async function sendEmailNotification(
   appointment: AppointmentWithDetails,
   type: "BOOKING_CONFIRMATION" | "BOOKING_CANCELLED" | "REMINDER_24H" | "REMINDER_1H"
@@ -100,12 +99,26 @@ async function sendEmailNotification(
   const { subject, html } = getEmailContent(appointment, type);
 
   try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM || "noreply@example.com",
-      to: appointment.client.email,
-      subject,
-      html,
+    const response = await fetch("https://api.web3forms.com/submit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        access_key: WEB3FORMS_ACCESS_KEY,
+        subject: subject,
+        from_name: "심리상담 예약 시스템",
+        email: appointment.client.email,
+        message: html,
+      }),
     });
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.message || "Web3Forms submission failed");
+    }
 
     // 알림 기록 저장
     await prisma.notification.create({
