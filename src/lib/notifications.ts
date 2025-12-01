@@ -1,16 +1,9 @@
-import { SolapiMessageService } from "solapi";
 import { prisma } from "./prisma";
 import { formatDateKST, formatTimeKST } from "./datetime";
 import { formatPrice } from "./utils";
 
 // Web3Forms API
 const WEB3FORMS_ACCESS_KEY = process.env.WEB3FORMS_ACCESS_KEY || "";
-
-// Solapi 초기화
-const solapi = new SolapiMessageService(
-  process.env.SOLAPI_API_KEY || "",
-  process.env.SOLAPI_API_SECRET || ""
-);
 
 interface AppointmentWithDetails {
   id: string;
@@ -35,42 +28,16 @@ interface AppointmentWithDetails {
 
 // 예약 확정 알림 발송
 export async function sendBookingConfirmation(appointment: AppointmentWithDetails) {
-  const promises: Promise<void>[] = [];
-
-  // 이메일 발송
   if (appointment.client.email) {
-    promises.push(
-      sendEmailNotification(appointment, "BOOKING_CONFIRMATION")
-    );
+    await sendEmailNotification(appointment, "BOOKING_CONFIRMATION");
   }
-
-  // SMS 발송
-  if (appointment.client.phone) {
-    promises.push(
-      sendSMSNotification(appointment, "BOOKING_CONFIRMATION")
-    );
-  }
-
-  await Promise.allSettled(promises);
 }
 
 // 예약 취소 알림 발송
 export async function sendBookingCancellation(appointment: AppointmentWithDetails) {
-  const promises: Promise<void>[] = [];
-
   if (appointment.client.email) {
-    promises.push(
-      sendEmailNotification(appointment, "BOOKING_CANCELLED")
-    );
+    await sendEmailNotification(appointment, "BOOKING_CANCELLED");
   }
-
-  if (appointment.client.phone) {
-    promises.push(
-      sendSMSNotification(appointment, "BOOKING_CANCELLED")
-    );
-  }
-
-  await Promise.allSettled(promises);
 }
 
 // 리마인더 알림 발송
@@ -78,17 +45,9 @@ export async function sendReminder(
   appointment: AppointmentWithDetails,
   type: "REMINDER_24H" | "REMINDER_1H"
 ) {
-  const promises: Promise<void>[] = [];
-
   if (appointment.client.email) {
-    promises.push(sendEmailNotification(appointment, type));
+    await sendEmailNotification(appointment, type);
   }
-
-  if (appointment.client.phone) {
-    promises.push(sendSMSNotification(appointment, type));
-  }
-
-  await Promise.allSettled(promises);
 }
 
 // 이메일 알림 발송 (Web3Forms)
@@ -144,53 +103,6 @@ async function sendEmailNotification(
         channel: "EMAIL",
         recipient: appointment.client.email,
         content: html,
-        isSuccess: false,
-        errorMessage: error instanceof Error ? error.message : "Unknown error",
-      },
-    });
-
-    throw error;
-  }
-}
-
-// SMS 알림 발송
-async function sendSMSNotification(
-  appointment: AppointmentWithDetails,
-  type: "BOOKING_CONFIRMATION" | "BOOKING_CANCELLED" | "REMINDER_24H" | "REMINDER_1H"
-) {
-  const content = getSMSContent(appointment, type);
-
-  try {
-    await solapi.sendOne({
-      to: appointment.client.phone!,
-      from: process.env.SOLAPI_SENDER_PHONE || "",
-      text: content,
-    });
-
-    // 알림 기록 저장
-    await prisma.notification.create({
-      data: {
-        userId: appointment.client.id,
-        appointmentId: appointment.id,
-        type,
-        channel: "SMS",
-        recipient: appointment.client.phone!,
-        content,
-        sentAt: new Date(),
-        isSuccess: true,
-      },
-    });
-  } catch (error) {
-    console.error("SMS notification failed:", error);
-
-    await prisma.notification.create({
-      data: {
-        userId: appointment.client.id,
-        appointmentId: appointment.id,
-        type,
-        channel: "SMS",
-        recipient: appointment.client.phone!,
-        content,
         isSuccess: false,
         errorMessage: error instanceof Error ? error.message : "Unknown error",
       },
@@ -323,29 +235,5 @@ function getEmailContent(
           </div>
         `,
       };
-  }
-}
-
-// SMS 콘텐츠 생성
-function getSMSContent(
-  appointment: AppointmentWithDetails,
-  type: "BOOKING_CONFIRMATION" | "BOOKING_CANCELLED" | "REMINDER_24H" | "REMINDER_1H"
-): string {
-  const counselorName = appointment.counselor.user.name || "상담사";
-  const dateStr = formatDateKST(appointment.startTime, "M월 d일");
-  const timeStr = formatTimeKST(appointment.startTime);
-
-  switch (type) {
-    case "BOOKING_CONFIRMATION":
-      return `[심리상담] 예약이 확정되었습니다.\n상담사: ${counselorName}\n일시: ${dateStr} ${timeStr}\n취소는 24시간 전까지 가능합니다.`;
-
-    case "BOOKING_CANCELLED":
-      return `[심리상담] 예약이 취소되었습니다.\n상담사: ${counselorName}\n일시: ${dateStr} ${timeStr}`;
-
-    case "REMINDER_24H":
-      return `[심리상담] 내일 상담 예정 안내\n상담사: ${counselorName}\n일시: ${dateStr} ${timeStr}`;
-
-    case "REMINDER_1H":
-      return `[심리상담] 1시간 후 상담 시작\n상담사: ${counselorName}\n시간: ${timeStr}`;
   }
 }

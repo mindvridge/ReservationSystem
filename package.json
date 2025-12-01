@@ -38,7 +38,6 @@
     "react": "^18",
     "react-day-picker": "^9.11.3",
     "react-dom": "^18",
-    "solapi": "^5.5.3",
     "svix": "^1.81.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7"
