@@ -338,7 +338,7 @@ export function BookingCalendar({
 
             <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
               <p>
-                * 예약 확정 후 SMS와 이메일로 알림을 보내드립니다.
+                * 예약 확정 후 이메일로 알림을 보내드립니다.
               </p>
               <p>
                 * 예약 취소는 상담 24시간 전까지 가능합니다.

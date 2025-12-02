@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
-import { Menu, X, Calendar, User, Settings, Home } from "lucide-react";
+import { Menu, X, Calendar, User, Settings, Home, UserCircle } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ const clientLinks = [
 const counselorLinks = [
   { href: "/counselor/dashboard", label: "상담 관리", icon: Calendar },
   { href: "/counselor/schedule", label: "일정 설정", icon: Settings },
+  { href: "/counselor/profile", label: "프로필 수정", icon: UserCircle },
 ];
 
 const adminLinks = [
