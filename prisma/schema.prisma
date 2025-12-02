@@ -40,19 +40,22 @@ enum NotificationChannel {
 
 // 사용자 (Clerk에서 동기화)
 model User {
-  id            String    @id // Clerk user ID
-  email         String    @unique
-  name          String?
-  phone         String?
-  role          UserRole  @default(CLIENT)
-  profileImage  String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                  String    @id // Clerk user ID
+  email               String    @unique
+  name                String?
+  phone               String?
+  role                UserRole  @default(CLIENT)
+  profileImage        String?
+  onboardingCompleted Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   // Relations
-  counselorProfile  Counselor?
+  counselorProfile   Counselor?
   clientAppointments Appointment[] @relation("ClientAppointments")
-  notifications     Notification[]
+  notifications      Notification[]
+  sentMessages       Message[]     @relation("SentMessages")
+  receivedMessages   Message[]     @relation("ReceivedMessages")
 
   @@map("users")
 }
@@ -191,4 +194,25 @@ model Notification {
   @@index([appointmentId])
   @@index([userId])
   @@map("notifications")
+}
+
+// 메시지 (상담사-내담자 대화)
+model Message {
+  id          String    @id @default(cuid())
+
+  senderId    String
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId  String
+  receiver    User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  content     String    @db.Text
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([senderId, receiverId])
+  @@index([receiverId, isRead])
+  @@map("messages")
 }

@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { toKST } from "@/lib/datetime";
 import { formatPrice } from "@/lib/utils";
 import { Calendar, Clock, Loader2, X } from "lucide-react";
+import { CalendarSyncButton } from "@/components/calendar/calendar-sync";
 
 interface Appointment {
   id: string;
@@ -185,6 +186,9 @@ export function AppointmentList({ appointments, type, role }: AppointmentListPro
               {/* 상태 및 액션 */}
               <div className="flex items-center gap-2">
                 <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                {type === "upcoming" && ["PENDING", "CONFIRMED"].includes(appointment.status) && (
+                  <CalendarSyncButton appointmentId={appointment.id} variant="ghost" size="sm" />
+                )}
                 {canCancel && (
                   <Button
                     variant="ghost"

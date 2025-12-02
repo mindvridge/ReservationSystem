@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppointmentList } from "@/components/dashboard/appointment-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar, Clock, CheckCircle } from "lucide-react";
+import { CalendarExportButton } from "@/components/calendar/calendar-sync";
 
 async function getAppointmentStats(userId: string) {
   const now = new Date();
@@ -183,9 +184,12 @@ async function DashboardContent() {
 export default function DashboardPage() {
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">내 예약</h1>
-        <p className="text-muted-foreground">예약 현황을 확인하고 관리하세요.</p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">내 예약</h1>
+          <p className="text-muted-foreground">예약 현황을 확인하고 관리하세요.</p>
+        </div>
+        <CalendarExportButton type="upcoming" />
       </div>
 
       <Suspense fallback={<DashboardSkeleton />}>

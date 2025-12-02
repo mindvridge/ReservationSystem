@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
-import { Menu, X, Calendar, User, Settings, Home, UserCircle } from "lucide-react";
+import { Menu, X, Calendar, User, Settings, Home, UserCircle, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const publicLinks = [
@@ -15,6 +16,8 @@ const publicLinks = [
 
 const clientLinks = [
   { href: "/dashboard", label: "내 예약", icon: Calendar },
+  { href: "/messages", label: "메시지", icon: MessageCircle },
+  { href: "/settings", label: "설정", icon: Settings },
 ];
 
 const counselorLinks = [
@@ -85,7 +88,8 @@ export function Header() {
           </div>
 
           {/* 인증 버튼 */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <ThemeToggle />
             {isSignedIn ? (
               <UserButton
                 afterSignOutUrl="/"
